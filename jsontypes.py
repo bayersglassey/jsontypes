@@ -3,6 +3,15 @@
 import json
 
 
+
+#### TODO!!!!
+# Add an "any" type.
+# It's generated when e.g. we encounter an empty array.
+# We still need "empty" to represent missing object keys.
+# (So then... we could probably just get rid of "empty".
+# But might as well keep it... "any" is type theoretical
+# "top", "empty" is "bottom".)
+
 JT_TAGS = {
     "empty",
     "null",
