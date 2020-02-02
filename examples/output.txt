@@ -1,0 +1,180 @@
+------------------------------
+Example: menu.json
+------------------------------
+object:
+  "menu": object:
+    "id": string
+    "value": string
+    "popup": object:
+      "menuitem": array:
+        object:
+          "value": string
+          "onclick": string
+
+------------------------------
+Example: widget.json
+------------------------------
+object:
+  "widget": object:
+    "debug": string
+    "window": object:
+      "title": string
+      "name": string
+      "width": number
+      "height": number
+    "image": object:
+      "src": string
+      "name": string
+      "hOffset": number
+      "vOffset": number
+      "alignment": string
+    "text": object:
+      "data": string
+      "size": number
+      "style": string
+      "name": string
+      "hOffset": number
+      "vOffset": number
+      "alignment": string
+      "onMouseUp": string
+
+------------------------------
+Example: glossary.json
+------------------------------
+object:
+  "glossary": object:
+    "title": string
+    "GlossDiv": object:
+      "title": string
+      "GlossList": object:
+        "GlossEntry": object:
+          "ID": string
+          "SortAs": string
+          "GlossTerm": string
+          "Acronym": string
+          "Abbrev": string
+          "GlossDef": object:
+            "para": string
+            "GlossSeeAlso": array:
+              string
+          "GlossSee": string
+
+------------------------------
+Example: webapp.json
+------------------------------
+object:
+  "web-app": object:
+    "servlet": array:
+      object:
+        "servlet-name": string
+        "servlet-class": string
+        "init-param": object:
+          "configGlossary:installationAt": string
+          "configGlossary:adminEmail": string
+          "configGlossary:poweredBy": string
+          "configGlossary:poweredByIcon": string
+          "configGlossary:staticPath": string
+          "templateProcessorClass": string
+          "templateLoaderClass": string
+          "templatePath": string
+          "templateOverridePath": string
+          "defaultListTemplate": string
+          "defaultFileTemplate": string
+          "useJSP": boolean
+          "jspListTemplate": string
+          "jspFileTemplate": string
+          "cachePackageTagsTrack": number
+          "cachePackageTagsStore": number
+          "cachePackageTagsRefresh": number
+          "cacheTemplatesTrack": number
+          "cacheTemplatesStore": number
+          "cacheTemplatesRefresh": number
+          "cachePagesTrack": number
+          "cachePagesStore": number
+          "cachePagesRefresh": number
+          "cachePagesDirtyRead": number
+          "searchEngineListTemplate": string
+          "searchEngineFileTemplate": string
+          "searchEngineRobotsDb": string
+          "useDataStore": boolean
+          "dataStoreClass": string
+          "redirectionClass": string
+          "dataStoreName": string
+          "dataStoreDriver": string
+          "dataStoreUrl": string
+          "dataStoreUser": string
+          "dataStorePassword": string
+          "dataStoreTestQuery": string
+          "dataStoreLogFile": string
+          "dataStoreInitConns": number
+          "dataStoreMaxConns": number
+          "dataStoreConnUsageLimit": number
+          "dataStoreLogLevel": string
+          "maxUrlLength": number
+          "mailHost": union:
+            empty
+            string
+          "mailHostOverride": union:
+            empty
+            string
+          "log": union:
+            empty
+            number
+          "logLocation": union:
+            empty
+            string
+          "logMaxSize": union:
+            empty
+            string
+          "dataLog": union:
+            empty
+            number
+          "dataLogLocation": union:
+            empty
+            string
+          "dataLogMaxSize": union:
+            empty
+            string
+          "removePageCache": union:
+            empty
+            string
+          "removeTemplateCache": union:
+            empty
+            string
+          "fileTransferFolder": union:
+            empty
+            string
+          "lookInContext": union:
+            empty
+            number
+          "adminGroupID": union:
+            empty
+            number
+          "betaServer": union:
+            empty
+            boolean
+    "servlet-mapping": object:
+      "cofaxCDS": string
+      "cofaxEmail": string
+      "cofaxAdmin": string
+      "fileServlet": string
+      "cofaxTools": string
+    "taglib": object:
+      "taglib-uri": string
+      "taglib-location": string
+
+------------------------------
+Example: menu2.json
+------------------------------
+object:
+  "menu": object:
+    "header": string
+    "items": array:
+      union:
+        object:
+          "id": string
+          "label": union:
+            empty
+            string
+        null
+

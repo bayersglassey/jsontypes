@@ -15,7 +15,7 @@ import json
 JT_TAGS = {
     "empty",
     "null",
-    "bool",
+    "boolean",
     "string",
     "number",
     "object",
@@ -58,8 +58,10 @@ class JsonType:
 
     """
 
-    def __init__(self):
+    def __init__(self, *values):
         self.jt = ("empty",)
+        for value in values:
+            self.add(value)
 
     def show(self):
         """Prints stuff and returns None."""
@@ -100,7 +102,7 @@ class JsonType:
         if v is None:
             return "null"
         if isinstance(v, bool):
-            return "bool"
+            return "boolean"
         if isinstance(v, str):
             return "string"
         if isinstance(v, (int, float)):
