@@ -4,16 +4,10 @@ import json
 
 
 
-#### TODO!!!!
-# Add an "any" type.
-# It's generated when e.g. we encounter an empty array.
-# We still need "empty" to represent missing object keys.
-# (So then... we could probably just get rid of "empty".
-# But might as well keep it... "any" is type theoretical
-# "top", "empty" is "bottom".)
-
 JT_TAGS = {
-    "empty",
+    "any",
+    "void",
+    "undefined",
     "null",
     "boolean",
     "string",
@@ -24,7 +18,12 @@ JT_TAGS = {
 }
 
 
-_empty = object()
+class Undefined:
+    def __str__(self):
+        return "undefined"
+    def __repr__(self):
+        return "undefined"
+undefined = Undefined()
 
 
 class JsonType:
@@ -53,13 +52,14 @@ class JsonType:
         #       number
         #     null
         #   "c": union:
-        #     empty
+        #     undefined
         #     string
 
     """
 
-    def __init__(self, *values):
-        self.jt = ("empty",)
+    def __init__(self, *values, match_verbose=False):
+        self.jt = ("void",)
+        self.match_verbose = match_verbose
         for value in values:
             self.add(value)
 
@@ -96,9 +96,9 @@ class JsonType:
 
     def get_value_tag(self, v):
         """Returns str."""
-        if v is _empty:
+        if v is undefined:
             # Kind of a hack to make matching work with objects
-            return "empty"
+            return "undefined"
         if v is None:
             return "null"
         if isinstance(v, bool):
@@ -117,7 +117,7 @@ class JsonType:
         """Returns the type of given value."""
         tag = self.get_value_tag(value)
         if tag == "array":
-            sub_jt = ("empty",)
+            sub_jt = ("void",)
             for sub_value in value:
                 sub_jt = self.merge_value(sub_jt, sub_value)
             return ("array", sub_jt)
@@ -136,8 +136,12 @@ class JsonType:
 
         jt_tag = jt[0]
 
-        # Empty is always replaced by a real type
-        if jt_tag == "empty":
+        # Any merged with some other thing is still any
+        if jt_tag == "any":
+            return jt
+
+        # Void is always replaced by a real type
+        if jt_tag == "void":
             return self.get_value_jt(value)
 
         # Unions are special
@@ -175,15 +179,8 @@ class JsonType:
         if value_tag == "object" and jt_tag == "object":
             jt_dict = jt[1]
             for key, sub_value in value.items():
-                if key in jt_dict:
-                    sub_jt = jt_dict[key]
-                    sub_jt = self.merge_value(sub_jt, sub_value)
-                else:
-                    # This key was missing, that is, "empty".
-                    # So its type is the union of "empty"
-                    # and value's type.
-                    sub_value_jt = self.get_value_jt(sub_value)
-                    sub_jt = ("union", [("empty",), sub_value_jt])
+                sub_jt = jt_dict.get(key, ("undefined",))
+                sub_jt = self.merge_value(sub_jt, sub_value)
                 jt_dict[key] = sub_jt
             return jt
 
@@ -226,21 +223,25 @@ class JsonType:
         """Returns bool"""
         return self.match_value(self.jt, value)
 
-    def match_value(self, jt, value, verbose=False):
+    def match_value(self, jt, value):
         """Returns bool"""
-        m = self._match_value(jt, value, verbose)
-        if not m and verbose:
+        m = self._match_value(jt, value)
+        if not m and self.match_verbose:
             print("No match!")
             print("Value: {}".format(value))
             print("Schema:")
             self.show_jt(jt, 1)
         return m
 
-    def _match_value(self, jt, value, verbose=False):
+    def _match_value(self, jt, value):
         """Returns bool"""
 
         jt_tag = jt[0]
         value_tag = self.get_value_tag(value)
+
+        # Any: always matches
+        if jt_tag == "any":
+            return True
 
         # Union: value matches if it matches any of union's subtypes
         if jt_tag == "union":
@@ -255,29 +256,27 @@ class JsonType:
             sub_jt = jt[1]
             for sub_value in value:
                 if not self.match_value(sub_jt, sub_value):
-                    if verbose:
+                    if self.match_verbose:
                         print("(At subvalue: {})".format(sub_value))
                     return False
             return True
 
         # Object: values for all keys must match the corresponding subtype.
-        # If subtype is "empty", key must be missing entirely.
+        # If subtype is "undefined", key must be missing entirely.
         if jt_tag == "object" and value_tag == "object":
             jt_dict = jt[1]
 
-            # All keys of value must be in the schema
-            for key in value:
-                if key not in jt_dict:
-                    if verbose:
-                        print("(Key missing from schema: {})".format(key))
-                    return False
+            # Check all keys, relying on the "undefined" type and value
+            # to tell us if any are missing
+            keys = set(value) | set(jt_dict)
 
             # Value for each key must match corresponding subtype
-            # (Missing keys are handled by a special _empty value)
-            for key, sub_jt in jt_dict.items():
-                sub_value = value.get(key, _empty)
+            # (Missing keys are handled by a special undefined value)
+            for key in keys:
+                sub_jt = jt_dict.get(key, ("undefined",))
+                sub_value = value.get(key, undefined)
                 if not self.match_value(sub_jt, sub_value):
-                    if verbose:
+                    if self.match_verbose:
                         print("(At key: {})".format(key))
                     return False
 
@@ -294,12 +293,16 @@ def test():
 
     j = JsonType()
 
-    assert j.match(_empty)
+    assert j.jt == ("void",)
 
     j.add(v1)
 
     assert j.match(v1)
     assert not j.match(v2)
+
+    v1_alt = v1.copy()
+    v1_alt["lallaa"] = undefined
+    assert j.match(v1_alt)
 
     j.add(v2)
 
@@ -315,7 +318,7 @@ def test():
             ("null",),
         ]),
         "c": ("union", [
-            ("empty",),
+            ("undefined",),
             ("string",),
         ]),
     })
