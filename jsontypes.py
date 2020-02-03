@@ -57,11 +57,42 @@ class JsonType:
 
     """
 
-    def __init__(self, *values, match_verbose=False):
-        self.jt = ("void",)
+    def __init__(self, *values, match_verbose=False, _jt=("void",)):
+        self.jt = _jt
         self.match_verbose = match_verbose
         for value in values:
             self.add(value)
+
+    def __str__(self):
+        return self.tostr()
+
+    def tostr(self):
+        return self.tostr_jt(self.jt, depth=0)
+
+    def tostr_jt(self, jt, depth=0):
+        """Returns str."""
+        jt_tag = jt[0]
+        if jt_tag == "array":
+            sub_jt = jt[1]
+            sub_str = self.tostr_jt(sub_jt, depth+1)
+            return "[{}]".format(sub_str)
+        elif jt_tag == "object":
+            jt_dict = jt[1]
+            sub_strs = []
+            for key, sub_jt in jt_dict.items():
+                prefix = json.dumps(key) + ": "
+                sub_str = prefix + self.tostr_jt(sub_jt, depth+1)
+                sub_strs.append(sub_str)
+            return "{{{}}}".format(", ".join(sub_strs))
+        elif jt_tag == "union":
+            sub_jts = jt[1]
+            sub_strs = []
+            for sub_jt in sub_jts:
+                sub_str = self.tostr_jt(sub_jt, depth+1)
+                sub_strs.append(sub_str)
+            return " | ".join(sub_strs)
+        else:
+            return jt_tag
 
     def show(self):
         """Prints stuff and returns None."""
@@ -308,6 +339,9 @@ def test():
 
     assert j.match(v1)
     assert j.match(v2)
+
+    print(j)
+    assert str(j) == '{"a": number, "b": [number] | null, "c": undefined | string}'
 
     j.show()
 
