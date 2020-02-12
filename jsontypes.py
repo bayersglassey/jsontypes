@@ -1,5 +1,6 @@
 #!/bin/env python3
 
+from collections import namedtuple
 import json
 
 
@@ -16,6 +17,9 @@ JT_TAGS = {
     "array",
     "union",
 }
+
+JtNode = namedtuple("JtNode", ["tag", "data"])
+JtNode.__new__.__defaults__ = ("void", None)
 
 
 class Undefined:
@@ -57,7 +61,7 @@ class JsonType:
 
     """
 
-    def __init__(self, *values, match_verbose=False, _jt=("void",)):
+    def __init__(self, *values, match_verbose=False, _jt=JtNode("void")):
         self.jt = _jt
         self.match_verbose = match_verbose
         for value in values:
@@ -71,13 +75,13 @@ class JsonType:
 
     def tostr_jt(self, jt, depth=0):
         """Returns str."""
-        jt_tag = jt[0]
+        jt_tag = jt.tag
         if jt_tag == "array":
-            sub_jt = jt[1]
+            sub_jt = jt.data
             sub_str = self.tostr_jt(sub_jt, depth+1)
             return "[{}]".format(sub_str)
         elif jt_tag == "object":
-            jt_dict = jt[1]
+            jt_dict = jt.data
             sub_strs = []
             for key, sub_jt in jt_dict.items():
                 prefix = json.dumps(key) + ": "
@@ -85,7 +89,7 @@ class JsonType:
                 sub_strs.append(sub_str)
             return "{{{}}}".format(", ".join(sub_strs))
         elif jt_tag == "union":
-            sub_jts = jt[1]
+            sub_jts = jt.data
             sub_strs = []
             for sub_jt in sub_jts:
                 sub_str = self.tostr_jt(sub_jt, depth+1)
@@ -100,20 +104,20 @@ class JsonType:
 
     def show_jt(self, jt, depth=0, prefix=""):
         """Prints stuff and returns None."""
-        jt_tag = jt[0]
+        jt_tag = jt.tag
         tabs = "  " * depth
         if jt_tag == "array":
-            sub_jt = jt[1]
+            sub_jt = jt.data
             print(tabs + prefix + "array:")
             self.show_jt(sub_jt, depth+1)
         elif jt_tag == "object":
-            jt_dict = jt[1]
+            jt_dict = jt.data
             print(tabs + prefix + "object:")
             for key, sub_jt in jt_dict.items():
                 prefix = json.dumps(key) + ": "
                 self.show_jt(sub_jt, depth+1, prefix)
         elif jt_tag == "union":
-            sub_jts = jt[1]
+            sub_jts = jt.data
             print(tabs + prefix + "union:")
             for sub_jt in sub_jts:
                 self.show_jt(sub_jt, depth+1)
@@ -148,24 +152,24 @@ class JsonType:
         """Returns the type of given value."""
         tag = self.get_value_tag(value)
         if tag == "array":
-            sub_jt = ("void",)
+            sub_jt = JtNode("void")
             for sub_value in value:
                 sub_jt = self.merge_value(sub_jt, sub_value)
-            return ("array", sub_jt)
+            return JtNode("array", sub_jt)
         elif tag == "object":
             jt_dict = {}
             for key, sub_value in value.items():
                 jt_dict[key] = self.get_value_jt(sub_value)
-            return ("object", jt_dict)
+            return JtNode("object", jt_dict)
         else:
-            return (tag,)
+            return JtNode(tag)
 
     def merge_value(self, jt, value):
         """Merges the type of given value into jt.
 
         May modify jt and/or return it."""
 
-        jt_tag = jt[0]
+        jt_tag = jt.tag
 
         # Any merged with some other thing is still any
         if jt_tag == "any":
@@ -186,7 +190,7 @@ class JsonType:
 
         # They are different types, so return a union of them
         value_jt = self.get_value_jt(value)
-        return ("union", [jt, value_jt])
+        return JtNode("union", [jt, value_jt])
 
     def _merge_value_core(self, jt, value):
         """Shared logic of merge_value and union_merge_value.
@@ -195,22 +199,22 @@ class JsonType:
 
         Modifies & returns jt, or returns None."""
 
-        jt_tag = jt[0]
+        jt_tag = jt.tag
         value_tag = self.get_value_tag(value)
 
         # Both are arrays: merge them
         if value_tag == "array" and jt_tag == "array":
-            sub_jt = jt[1]
+            sub_jt = jt.data
             for sub_value in value:
                 sub_jt = self.merge_value(sub_jt, sub_value)
-            jt = ("array", sub_jt)
+            jt = JtNode("array", sub_jt)
             return jt
 
         # Both are objects: merge them
         if value_tag == "object" and jt_tag == "object":
-            jt_dict = jt[1]
+            jt_dict = jt.data
             for key, sub_value in value.items():
-                sub_jt = jt_dict.get(key, ("undefined",))
+                sub_jt = jt_dict.get(key, JtNode("undefined"))
                 sub_jt = self.merge_value(sub_jt, sub_value)
                 jt_dict[key] = sub_jt
             return jt
@@ -225,7 +229,7 @@ class JsonType:
     def union_merge_value(self, jt, value):
         """Modifies & returns jt (which must be a union)."""
 
-        assert jt[0] == "union"
+        assert jt.tag == "union"
         value_tag = self.get_value_tag(value)
 
         # The algorithm:
@@ -237,7 +241,7 @@ class JsonType:
         # NOTE: subtypes of a union are guaranteed not to be unions
         # themselves.
         # (That is, unions are always flat.)
-        sub_jts = jt[1]
+        sub_jts = jt.data
         for sub_jt in sub_jts:
             merged_jt = self._merge_value_core(sub_jt, value)
             if merged_jt is not None:
@@ -267,7 +271,7 @@ class JsonType:
     def _match_value(self, jt, value):
         """Returns bool"""
 
-        jt_tag = jt[0]
+        jt_tag = jt.tag
         value_tag = self.get_value_tag(value)
 
         # Any: always matches
@@ -276,7 +280,7 @@ class JsonType:
 
         # Union: value matches if it matches any of union's subtypes
         if jt_tag == "union":
-            sub_jts = jt[1]
+            sub_jts = jt.data
             for sub_jt in sub_jts:
                 if self.match_value(sub_jt, value):
                     return True
@@ -284,7 +288,7 @@ class JsonType:
 
         # Array: all elements of the array must match the subtype
         if jt_tag == "array" and value_tag == "array":
-            sub_jt = jt[1]
+            sub_jt = jt.data
             for sub_value in value:
                 if not self.match_value(sub_jt, sub_value):
                     if self.match_verbose:
@@ -295,7 +299,7 @@ class JsonType:
         # Object: values for all keys must match the corresponding subtype.
         # If subtype is "undefined", key must be missing entirely.
         if jt_tag == "object" and value_tag == "object":
-            jt_dict = jt[1]
+            jt_dict = jt.data
 
             # Check all keys, relying on the "undefined" type and value
             # to tell us if any are missing
@@ -304,7 +308,7 @@ class JsonType:
             # Value for each key must match corresponding subtype
             # (Missing keys are handled by a special undefined value)
             for key in keys:
-                sub_jt = jt_dict.get(key, ("undefined",))
+                sub_jt = jt_dict.get(key, JtNode("undefined"))
                 sub_value = value.get(key, undefined)
                 if not self.match_value(sub_jt, sub_value):
                     if self.match_verbose:
@@ -324,7 +328,7 @@ def test():
 
     j = JsonType()
 
-    assert j.jt == ("void",)
+    assert j.jt == JtNode("void")
 
     j.add(v1)
 
@@ -345,15 +349,15 @@ def test():
 
     j.show()
 
-    assert j.jt == ("object", {
-        "a": ("number",),
-        "b": ("union", [
-            ("array", ("number",)),
-            ("null",),
+    assert j.jt == JtNode("object", {
+        "a": JtNode("number"),
+        "b": JtNode("union", [
+            JtNode("array", JtNode("number")),
+            JtNode("null"),
         ]),
-        "c": ("union", [
-            ("undefined",),
-            ("string",),
+        "c": JtNode("union", [
+            JtNode("undefined"),
+            JtNode("string"),
         ]),
     })
 
