@@ -1,33 +1,8 @@
 #!/bin/env python3
 
-from collections import namedtuple
 import json
 
-
-
-JT_TAGS = {
-    "any",
-    "void",
-    "undefined",
-    "null",
-    "boolean",
-    "string",
-    "number",
-    "object",
-    "array",
-    "union",
-}
-
-JtNode = namedtuple("JtNode", ["tag", "data"])
-JtNode.__new__.__defaults__ = ("void", None)
-
-
-class Undefined:
-    def __str__(self):
-        return "undefined"
-    def __repr__(self):
-        return "undefined"
-undefined = Undefined()
+from core import JtNode, undefined
 
 
 class JsonType:
